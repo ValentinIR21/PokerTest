@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Покер — трекер фишек</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green: #1a6b3a;
+    --green-light: #22883f;
+    --green-felt: #0e4f2a;
+    --gold: #c9a84c;
+    --gold-light: #e8c96b;
+    --red: #c0392b;
+    --bg: #0a1a0f;
+    --surface: #112318;
+    --surface2: #1a3324;
+    --border: rgba(201,168,76,0.18);
+    --text: #f0ead6;
+    --text-muted: #8a9e8e;
+    --radius: 14px;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+  body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  .app { width: 100%; max-width: 440px; min-height: 100vh; display: flex; flex-direction: column; padding: 0 0 40px; }
+
+  /* screens */
+  .screen { display: none; flex-direction: column; flex: 1; padding: 20px 16px; }
+  .screen.active { display: flex; }
+
+  /* header */
+  .logo { font-size: 11px; letter-spacing: 0.18em; color: var(--gold); font-family: var(--mono); text-transform: uppercase; margin-bottom: 4px; }
+  .page-title { font-size: 26px; font-weight: 700; line-height: 1.1; margin-bottom: 6px; }
+  .page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+
+  /* card */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 12px; font-family: var(--mono); color: var(--gold); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; }
+
+  /* form */
+  label { font-size: 12px; color: var(--text-muted); font-family: var(--mono); display: block; margin-bottom: 5px; letter-spacing: 0.06em; }
+  input, select {
+    width: 100%; background: var(--bg); border: 0.5px solid var(--border); border-radius: 8px;
+    color: var(--text); font-size: 15px; font-family: var(--sans); padding: 10px 12px;
+    margin-bottom: 14px; outline: none; transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus { border-color: var(--gold); }
+  input::placeholder { color: var(--text-muted); }
+  select option { background: var(--surface2); }
+
+  /* buttons */
+  .btn { width: 100%; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600; font-family: var(--sans); cursor: pointer; border: none; transition: all 0.15s; margin-bottom: 8px; letter-spacing: 0.02em; }
+  .btn-primary { background: var(--gold); color: #0a1a0f; }
+  .btn-primary:active { background: var(--gold-light); transform: scale(0.98); }
+  .btn-green { background: var(--green-light); color: #fff; }
+  .btn-green:active { background: var(--green); transform: scale(0.98); }
+  .btn-ghost { background: transparent; color: var(--text); border: 0.5px solid var(--border); }
+  .btn-ghost:active { background: var(--surface2); transform: scale(0.98); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:active { opacity: 0.8; transform: scale(0.98); }
+  .btn-sm { width: auto; padding: 7px 14px; font-size: 13px; margin-bottom: 0; border-radius: 8px; }
+
+  /* top bar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px; }
+  .topbar-title { font-size: 17px; font-weight: 700; }
+
+  /* pot */
+  .pot-wrap { text-align: center; padding: 20px 16px; background: var(--green-felt); border-radius: var(--radius); border: 0.5px solid rgba(201,168,76,0.3); margin-bottom: 14px; }
+  .pot-label { font-size: 11px; font-family: var(--mono); letter-spacing: 0.14em; color: var(--gold); text-transform: uppercase; margin-bottom: 4px; }
+  .pot-val { font-size: 42px; font-weight: 700; line-height: 1; font-family: var(--mono); }
+  .pot-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; font-family: var(--mono); }
+
+  /* stats row */
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .stat { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 10px 8px; text-align: center; }
+  .stat-lbl { font-size: 10px; font-family: var(--mono); color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 3px; }
+  .stat-val { font-size: 16px; font-weight: 600; font-family: var(--mono); color: var(--gold); }
+
+  /* players list */
+  .players-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .player-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: 10px; padding: 11px 13px; display: flex; align-items: center; gap: 10px; transition: border-color 0.15s; }
+  .player-card.folded { opacity: 0.4; }
+  .player-card.my-turn { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(201,168,76,0.2); }
+  .player-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--gold); flex-shrink: 0; font-family: var(--mono); }
+  .player-name { font-size: 14px; font-weight: 600; line-height: 1.2; }
+  .player-chips { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
+  .player-right { margin-left: auto; text-align: right; }
+  .player-bet { font-size: 13px; font-weight: 600; color: var(--gold); font-family: var(--mono); }
+  .player-bet-lbl { font-size: 10px; color: var(--text-muted); font-family: var(--mono); }
+  .badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px; }
+  .badge { font-size: 9px; font-family: var(--mono); padding: 2px 6px; border-radius: 99px; font-weight: 500; letter-spacing: 0.05em; }
+  .badge-d { background: rgba(201,168,76,0.2); color: var(--gold); border: 0.5px solid rgba(201,168,76,0.4); }
+  .badge-sb { background: rgba(34,136,63,0.2); color: #6ee08a; border: 0.5px solid rgba(34,136,63,0.4); }
+  .badge-bb { background: rgba(100,149,237,0.15); color: #90b8f0; border: 0.5px solid rgba(100,149,237,0.3); }
+  .badge-fold { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+  /* action panel */
+  .action-panel { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+  .action-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .action-row .btn { margin-bottom: 0; }
+  .bet-row { display: flex; gap: 8px; align-items: stretch; }
+  .bet-row input { margin-bottom: 0; flex: 1; }
+
+  /* room code */
+  .room-code { font-family: var(--mono); font-size: 32px; font-weight: 500; letter-spacing: 0.22em; color: var(--gold); text-align: center; padding: 16px 0 8px; }
+  .room-code-sub { text-align: center; font-size: 12px; color: var(--text-muted); font-family: var(--mono); margin-bottom: 20px; }
+
+  /* log */
+  .log { max-height: 200px; overflow-y: auto; }
+  .log-entry { font-size: 12px; font-family: var(--mono); color: var(--text-muted); padding: 5px 0; border-bottom: 0.5px solid rgba(255,255,255,0.05); line-height: 1.5; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-time { color: rgba(201,168,76,0.5); margin-right: 6px; }
+
+  /* divider */
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 10px 0; }
+
+  /* end screen */
+  .podium-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+  .podium-row:last-child { border-bottom: none; }
+  .podium-rank { font-size: 22px; width: 32px; }
+  .podium-name { font-size: 15px; font-weight: 600; flex: 1; }
+  .podium-chips { font-family: var(--mono); font-size: 16px; font-weight: 500; color: var(--gold); }
+
+  /* winner select */
+  .winner-opt { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; border: 0.5px solid var(--border); margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
+  .winner-opt:hover { border-color: var(--gold); }
+  .winner-opt input { width: auto; margin-bottom: 0; flex-shrink: 0; accent-color: var(--gold); }
+
+  /* toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface2); border: 0.5px solid var(--gold); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 10px 20px; border-radius: 99px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  .spinner { text-align: center; color: var(--text-muted); font-family: var(--mono); font-size: 13px; padding: 30px; }
+
+  .config-row { display: flex; gap: 8px; }
+  .config-row > div { flex: 1; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- SETUP SCREEN -->
+  <div id="screen-home" class="screen active">
+    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; padding: 20px 16px;">
+      <p class="logo">♠ Chip Tracker</p>
+      <h1 class="page-title">Покер<br>без фишек</h1>
+      <p class="page-sub">Создайте игру или введите код комнаты</p>
+
+      <div class="card">
+        <p class="card-title">Новая игра</p>
+        <label>Ваше имя</label>
+        <input type="text" id="host-name" placeholder="Иван" maxlength="20" />
+        <label>Имена остальных игроков</label>
+        <input type="text" id="other-players" placeholder="Маша, Петя, Саша" />
+        <div class="config-row">
+          <div>
+            <label>Фишки у каждого</label>
+            <input type="number" id="start-chips" value="1000" min="100" step="100" />
+          </div>
+          <div>
+            <label>Малый / Большой блайнд</label>
+            <input type="text" id="blinds" value="10/20" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="createRoom()">Создать игру</button>
+      </div>
+
+      <div class="card">
+        <p class="card-title">Войти в игру</p>
+        <label>Ваше имя</label>
+        <input type="text" id="join-name" placeholder="Маша" maxlength="20" />
+        <label>Код комнаты</label>
+        <input type="text" id="join-code" placeholder="AB12" maxlength="6" style="text-transform:uppercase;letter-spacing:0.15em;font-family:var(--mono);font-size:20px;" />
+        <button class="btn btn-green" onclick="joinRoom()">Войти</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOBBY SCREEN (waiting) -->
+  <div id="screen-lobby" class="screen">
+    <div class="topbar">
+      <span class="topbar-title">Ожидание игроков</span>
+      <button class="btn btn-ghost btn-sm" onclick="leaveGame()">Выйти</button>
+    </div>
+    <div style="padding: 0 16px; flex:1;">
+      <div class="room-code" id="lobby-code">----</div>
+      <p class="room-code-sub">Покажите этот код друзьям</p>
+      <button class="btn btn-ghost" style="margin-bottom:16px" onclick="copyCode()">Скопировать код</button>
+      <div class="card">
+        <p class="card-title">Игроки в комнате</p>
+        <div id="lobby-players"></div>
+      </div>
+      <div id="start-btn-wrap" style="display:none">
+        <button class="btn btn-primary" onclick="startGame()">Начать игру →</button>
+      </div>
+      <p style="text-align:center;font-size:12px;color:var(--text-muted);font-family:var(--mono);" id="lobby-status">Ждём игроков...</p>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" class="screen">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="game-room-code"></div>
+        <div style="font-size:11px;color:var(--text-muted);font-family:var(--mono)">раунд <span id="game-round">1</span></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="showLogScreen()">Лог</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmEnd()">Завершить</button>
+      </div>
+    </div>
+    <div style="padding: 0 16px;">
+      <div class="pot-wrap">
+        <div class="pot-label">Банк</div>
+        <div class="pot-val" id="game-pot">0</div>
+        <div class="pot-sub" id="game-bet-info">Текущая ставка: 0</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-lbl">SB</div><div class="stat-val" id="stat-sb">10</div></div>
+        <div class="stat"><div class="stat-lbl">BB</div><div class="stat-val" id="stat-bb">20</div></div>
+        <div class="stat"><div class="stat-lbl">Игроки</div><div class="stat-val" id="stat-players">0</div></div>
+      </div>
+      <div class="players-list" id="game-players"></div>
+
+      <div class="action-panel" id="action-panel">
+        <p class="card-title" style="margin-bottom:10px">Ваш ход</p>
+        <div class="action-row">
+          <button class="btn btn-ghost" onclick="doAction('fold')">Фолд</button>
+          <button class="btn btn-ghost" onclick="doAction('check')">Чек</button>
+          <button class="btn btn-green" onclick="doAction('call')">Колл</button>
+        </div>
+        <div class="bet-row">
+          <input type="number" id="bet-input" placeholder="Сумма рейза" min="1" />
+          <button class="btn btn-primary btn-sm" onclick="doAction('bet')">Рейз</button>
+        </div>
+      </div>
+
+      <div class="card" id="winner-panel" style="display:none">
+        <p class="card-title">Кто выиграл руку?</p>
+        <div id="winner-options"></div>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="awardPot()">Отдать банк победителю</button>
+        <hr class="divider" />
+        <button class="btn btn-ghost" onclick="nextRound()">Следующая рука →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG SCREEN -->
+  <div id="screen-log" class="screen">
+    <div class="topbar">
+      <span class="topbar-title">История</span>
+      <button class="btn btn-ghost btn-sm" onclick="showGameScreen()">← Назад</button>
+    </div>
+    <div style="padding: 0 16px; flex:1;">
+      <div class="card">
+        <div class="log" id="log-entries"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="screen-end" class="screen">
+    <div class="topbar">
+      <span class="topbar-title">Итоги</span>
+    </div>
+    <div style="padding: 0 16px; flex:1;">
+      <p style="font-size:13px;color:var(--text-muted);font-family:var(--mono);margin-bottom:16px;">Финальный счёт игры</p>
+      <div class="card" id="end-results"></div>
+      <button class="btn btn-primary" style="margin-top:12px" onclick="goHome()">Новая игра</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, update, onValue, push, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// =============================================
+//  ВСТАВЬТЕ СЮДА ВАШУ КОНФИГУРАЦИЮ FIREBASE
+// =============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAVRkfEZZEUR_ReC1eVence1W-u7LK9Ad0",
+  authDomain: "poker-8c841.firebaseapp.com",
+  databaseURL: "https://poker-8c841-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "poker-8c841",
+  storageBucket: "poker-8c841.firebasestorage.app",
+  messagingSenderId: "129218856337",
+  appId: "1:129218856337:web:579f05cb69e7a242514630"
+};
+// =============================================
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+let myName = '';
+let myRoomCode = '';
+let isHost = false;
+let unsubscribe = null;
+let gameState = null;
+
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function roomRef(code) { return ref(db, `rooms/${code}`); }
+
+window.createRoom = async function() {
+  const hostName = document.getElementById('host-name').value.trim();
+  const others = document.getElementById('other-players').value.trim();
+  const startChips = parseInt(document.getElementById('start-chips').value) || 1000;
+  const blindsVal = document.getElementById('blinds').value.trim();
+  const parts = blindsVal.split('/');
+  const sb = parseInt(parts[0]) || 10;
+  const bb = parseInt(parts[1]) || 20;
+
+  if (!hostName) { toast('Введите ваше имя'); return; }
+  if (!others) { toast('Введите имена других игроков'); return; }
+
+  const otherNames = others.split(',').map(s => s.trim()).filter(Boolean);
+  if (otherNames.length < 1) { toast('Нужно минимум 2 игрока'); return; }
+
+  const allNames = [hostName, ...otherNames];
+  const code = genCode();
+  myName = hostName;
+  myRoomCode = code;
+  isHost = true;
+
+  const players = {};
+  allNames.forEach((name, i) => {
+    players[name] = { name, chips: startChips, bet: 0, folded: false, order: i, connected: name === hostName };
+  });
+
+  const state = {
+    status: 'lobby',
+    round: 1,
+    pot: 0,
+    sb, bb,
+    currentBet: 0,
+    dealerIdx: 0,
+    players,
+    playerOrder: allNames,
+    log: [],
+    host: hostName,
+    createdAt: Date.now()
+  };
+
+  await set(roomRef(code), state);
+  subscribeRoom(code);
+  showScreen('screen-lobby');
+  document.getElementById('lobby-code').textContent = code;
+  toast('Комната создана!');
+};
+
+window.joinRoom = async function() {
+  const name = document.getElementById('join-name').value.trim();
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!name) { toast('Введите ваше имя'); return; }
+  if (code.length < 4) { toast('Введите код комнаты'); return; }
+
+  const snap = await get(roomRef(code));
+  if (!snap.exists()) { toast('Комната не найдена'); return; }
+
+  const data = snap.val();
+  if (!data.players[name]) { toast(`Игрок "${name}" не найден в этой комнате`); return; }
+
+  myName = name;
+  myRoomCode = code;
+  isHost = false;
+
+  await update(ref(db, `rooms/${code}/players/${name}`), { connected: true });
+  subscribeRoom(code);
+  showScreen('screen-lobby');
+  document.getElementById('lobby-code').textContent = code;
+};
+
+function subscribeRoom(code) {
+  if (unsubscribe) unsubscribe();
+  const r = roomRef(code);
+  unsubscribe = onValue(r, snap => {
+    if (!snap.exists()) return;
+    gameState = snap.val();
+    renderState(gameState);
+  });
+}
+
+function renderState(state) {
+  if (state.status === 'lobby') renderLobby(state);
+  else if (state.status === 'playing') renderGame(state);
+  else if (state.status === 'ended') renderEnd(state);
+}
+
+function renderLobby(state) {
+  showScreen('screen-lobby');
+  document.getElementById('lobby-code').textContent = myRoomCode;
+  const connected = Object.values(state.players).filter(p => p.connected);
+  const all = state.playerOrder || Object.keys(state.players);
+  const el = document.getElementById('lobby-players');
+  el.innerHTML = all.map(name => {
+    const p = state.players[name];
+    const online = p.connected ? '🟢' : '⚪';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:16px">${online}</span><span style="font-size:14px;font-weight:600">${name}</span>${name === state.host ? '<span style="font-size:11px;color:var(--gold);font-family:var(--mono)">хост</span>' : ''}</div>`;
+  }).join('');
+  document.getElementById('lobby-status').textContent = `${connected.length} из ${all.length} подключились`;
+  const startWrap = document.getElementById('start-btn-wrap');
+  startWrap.style.display = isHost ? 'block' : 'none';
+}
+
+window.startGame = async function() {
+  if (!gameState) return;
+  const state = JSON.parse(JSON.stringify(gameState));
+  state.status = 'playing';
+  postBlinds(state);
+  await set(roomRef(myRoomCode), state);
+};
+
+function postBlinds(state) {
+  const order = state.playerOrder;
+  const n = order.length;
+  const sbName = order[(state.dealerIdx + 1) % n];
+  const bbName = order[(state.dealerIdx + 2) % n];
+  const sbAmt = Math.min(state.sb, state.players[sbName].chips);
+  const bbAmt = Math.min(state.bb, state.players[bbName].chips);
+  state.players[sbName].chips -= sbAmt;
+  state.players[sbName].bet = sbAmt;
+  state.players[bbName].chips -= bbAmt;
+  state.players[bbName].bet = bbAmt;
+  state.pot = (state.pot || 0) + sbAmt + bbAmt;
+  state.currentBet = bbAmt;
+  addLog(state, `Раунд ${state.round}: ${sbName} SB ${sbAmt}, ${bbName} BB ${bbAmt}`);
+}
+
+function renderGame(state) {
+  const curScreen = document.querySelector('.screen.active');
+  if (curScreen && (curScreen.id === 'screen-log')) return;
+  showScreen('screen-game');
+  document.getElementById('game-room-code').textContent = `♠ ${myRoomCode}`;
+  document.getElementById('game-round').textContent = state.round;
+  document.getElementById('game-pot').textContent = (state.pot || 0).toLocaleString('ru');
+  document.getElementById('game-bet-info').textContent = `Текущая ставка: ${state.currentBet || 0}`;
+  document.getElementById('stat-sb').textContent = state.sb;
+  document.getElementById('stat-bb').textContent = state.bb;
+  document.getElementById('stat-players').textContent = state.playerOrder.filter(n => !state.players[n].folded).length;
+
+  const order = state.playerOrder;
+  const n = order.length;
+  const sbName = order[(state.dealerIdx + 1) % n];
+  const bbName = order[(state.dealerIdx + 2) % n];
+  const dealerName = order[state.dealerIdx % n];
+
+  const listEl = document.getElementById('game-players');
+  listEl.innerHTML = order.map(name => {
+    const p = state.players[name];
+    const isMe = name === myName;
+    let badges = '';
+    if (name === dealerName) badges += '<span class="badge badge-d">D</span>';
+    if (name === sbName) badges += '<span class="badge badge-sb">SB</span>';
+    if (name === bbName) badges += '<span class="badge badge-bb">BB</span>';
+    if (p.folded) badges += '<span class="badge badge-fold">Fold</span>';
+    const initials = name.slice(0, 2).toUpperCase();
+    const betEl = p.bet > 0 ? `<div class="player-bet">+${p.bet}</div><div class="player-bet-lbl">ставка</div>` : '';
+    return `<div class="player-card ${p.folded ? 'folded' : ''} ${isMe ? 'my-turn' : ''}">
+      <div class="player-avatar">${initials}</div>
+      <div>
+        <div class="player-name">${name}${isMe ? ' <span style="font-size:10px;color:var(--gold);font-family:var(--mono)">(вы)</span>' : ''}</div>
+        <div class="player-chips">${p.chips.toLocaleString('ru')} фишек</div>
+        <div class="badges">${badges}</div>
+      </div>
+      <div class="player-right">${betEl}</div>
+    </div>`;
+  }).join('');
+
+  const me = state.players[myName];
+  const actionPanel = document.getElementById('action-panel');
+  actionPanel.style.display = me && !me.folded ? 'block' : 'none';
+
+  const winnerPanel = document.getElementById('winner-panel');
+  if (isHost) {
+    winnerPanel.style.display = 'block';
+    const activePlayers = order.filter(n => !state.players[n].folded);
+    document.getElementById('winner-options').innerHTML = activePlayers.map(name =>
+      `<label class="winner-opt"><input type="radio" name="winner" value="${name}" /> ${name} (${state.players[name].chips} фишек)</label>`
+    ).join('');
+  } else {
+    winnerPanel.style.display = 'none';
+  }
+}
+
+window.doAction = async function(action) {
+  if (!gameState) return;
+  const state = JSON.parse(JSON.stringify(gameState));
+  const me = state.players[myName];
+  if (!me || me.folded) return;
+
+  if (action === 'fold') {
+    me.folded = true;
+    addLog(state, `${myName} — фолд`);
+  } else if (action === 'check') {
+    addLog(state, `${myName} — чек`);
+  } else if (action === 'call') {
+    const toCall = Math.min(state.currentBet - me.bet, me.chips);
+    me.chips -= toCall; me.bet += toCall; state.pot += toCall;
+    addLog(state, `${myName} — колл ${toCall}`);
+  } else if (action === 'bet') {
+    const amt = parseInt(document.getElementById('bet-input').value);
+    if (!amt || amt <= 0) { toast('Введите сумму'); return; }
+    const actual = Math.min(amt, me.chips);
+    me.chips -= actual; me.bet += actual; state.pot += actual;
+    if (me.bet > state.currentBet) state.currentBet = me.bet;
+    addLog(state, `${myName} — рейз ${actual}`);
+    document.getElementById('bet-input').value = '';
+  }
+
+  await set(roomRef(myRoomCode), state);
+};
+
+window.awardPot = async function() {
+  const sel = document.querySelector('input[name="winner"]:checked');
+  if (!sel) { toast('Выберите победителя'); return; }
+  const winnerName = sel.value;
+  const state = JSON.parse(JSON.stringify(gameState));
+  state.players[winnerName].chips += state.pot;
+  addLog(state, `${winnerName} выиграл банк ${state.pot} 🏆`);
+  state.pot = 0;
+  state.currentBet = 0;
+  state.playerOrder.forEach(n => state.players[n].bet = 0);
+  await set(roomRef(myRoomCode), state);
+  toast(`${winnerName} забирает банк!`);
+};
+
+window.nextRound = async function() {
+  const state = JSON.parse(JSON.stringify(gameState));
+  state.round++;
+  state.pot = 0;
+  state.currentBet = 0;
+  state.dealerIdx = (state.dealerIdx + 1) % state.playerOrder.length;
+  state.playerOrder.forEach(n => { state.players[n].bet = 0; state.players[n].folded = false; });
+  postBlinds(state);
+  await set(roomRef(myRoomCode), state);
+};
+
+window.confirmEnd = function() {
+  if (confirm('Завершить игру и посмотреть итоги?')) endGame();
+};
+
+async function endGame() {
+  const state = JSON.parse(JSON.stringify(gameState));
+  state.status = 'ended';
+  addLog(state, '— Игра завершена —');
+  await set(roomRef(myRoomCode), state);
+}
+
+function renderEnd(state) {
+  showScreen('screen-end');
+  const sorted = state.playerOrder.slice().sort((a,b) => state.players[b].chips - state.players[a].chips);
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('end-results').innerHTML = sorted.map((name, i) => {
+    const p = state.players[name];
+    return `<div class="podium-row"><span class="podium-rank">${medals[i] || (i+1)+'.'}</span><span class="podium-name">${name}</span><span class="podium-chips">${p.chips.toLocaleString('ru')}</span></div>`;
+  }).join('');
+}
+
+window.leaveGame = function() { if(unsubscribe) unsubscribe(); goHome(); };
+window.goHome = function() { showScreen('screen-home'); };
+
+window.showLogScreen = function() {
+  if (!gameState) return;
+  showScreen('screen-log');
+  const entries = (gameState.log || []).slice().reverse();
+  document.getElementById('log-entries').innerHTML = entries.map(e =>
+    `<div class="log-entry"><span class="log-time">${e.time || ''}</span>${e.msg}</div>`
+  ).join('') || '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px">Лог пустой</p>';
+};
+
+window.showGameScreen = function() { showScreen('screen-game'); };
+
+window.copyCode = function() {
+  navigator.clipboard.writeText(myRoomCode).then(() => toast('Код скопирован!'));
+};
+
+function addLog(state, msg) {
+  if (!state.log) state.log = [];
+  const now = new Date().toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'});
+  state.log.push({ msg, time: now });
+  if (state.log.length > 100) state.log = state.log.slice(-100);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function toast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), duration);
+}
+</script>
+</body>
+</html>
